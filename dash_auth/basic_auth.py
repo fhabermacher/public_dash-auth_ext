@@ -1,12 +1,14 @@
 from .auth import Auth
 import base64
 import flask
-
+from passlib.hash import sha256_crypt
 
 class BasicAuth(Auth):
-    def __init__(self, app, username_password_list):
+    def __init__(self, app, username_pwhash_list, sha256salt):
         Auth.__init__(self, app)
-        self._username_password_list = username_password_list
+        self._username_pwhash_list = username_pwhash_list
+        self.username = ''
+        self.salt = salt
 
     def is_authorized(self):
         header = flask.request.headers.get('Authorization', None)
@@ -15,8 +17,10 @@ class BasicAuth(Auth):
         username_password = base64.b64decode(header.split('Basic ')[1])
         username_password_utf8 = username_password.decode('utf-8')
         username, password = username_password_utf8.split(':')
-        for pair in self._username_password_list:
-            if pair[0] == username and pair[1] == password:
+        passwordhash = sha256_crypt.using(salt=sha256salt).hash(password)
+        for pair in self._username_pwhash_list:
+            if pair[0] == username and pair[1] == passwordhash:
+                self.username = username
                 return True
 
         return False
