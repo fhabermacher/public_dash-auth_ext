@@ -4,11 +4,17 @@ import flask
 from passlib.hash import sha256_crypt
 
 class BasicAuth(Auth):
-    def __init__(self, app, username_pwhash_list, sha256salt):
+    def __init__(self, app, username_pwhash_list, sha256salt,
+                 loginmsg='User Visible Realm'):
         Auth.__init__(self, app)
         self._username_pwhash_list = username_pwhash_list
-        self.username = ''
-        self.salt = salt
+        self._sha256salt = sha256salt
+        self._username = ''
+        self._loginmsg = loginmsg
+        # Storing auxiliary pw&hash pair: Just for speedup: as tend to
+        #  have frequent authorization requests during session, save hash for
+        #  password, as I guess hash calculation otherwise is slightly slow
+        self._pwhash_aux=[None,None]
 
     def is_authorized(self):
         header = flask.request.headers.get('Authorization', None)
@@ -17,10 +23,14 @@ class BasicAuth(Auth):
         username_password = base64.b64decode(header.split('Basic ')[1])
         username_password_utf8 = username_password.decode('utf-8')
         username, password = username_password_utf8.split(':')
-        passwordhash = sha256_crypt.using(salt=sha256salt).hash(password)
+        if (self._pwhash_aux[0] == password):
+            passwordhash = self._pwhash_aux[1]
+        else:
+            passwordhash = sha256_crypt.using(salt=self._sha256salt).hash(password)
+            self._pwhash_aux = [password,passwordhash]
         for pair in self._username_pwhash_list:
             if pair[0] == username and pair[1] == passwordhash:
-                self.username = username
+                self._username = username
                 return True
 
         return False
@@ -28,7 +38,8 @@ class BasicAuth(Auth):
     def login_request(self):
         return flask.Response(
             'Login Required',
-            headers={'WWW-Authenticate': 'Basic realm="User Visible Realm"'},
+            headers={'WWW-Authenticate': 'Basic realm="{}"'.format(
+                self._loginmsg)},
             status=401)
 
     def auth_wrapper(self, f):
