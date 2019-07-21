@@ -1,5 +1,9 @@
 ## Dash Authorization and Login
 
+## Attention: Security alert (vulnerability)
+Some of the public resources (dash) used in here seem to have a high severity security vulnerability that I had no time yet to take care of (not actively using the tool right atm), please consider the warning
+`yarn.lock update suggested: lodash ~> 4.17.13`
+
 Docs: [https://plot.ly/dash/authentication](https://plot.ly/dash/authentication)
 
 License: MIT
